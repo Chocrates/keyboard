@@ -139,7 +139,7 @@
     (if (< i (+ x-zero (/ num-keys 2)))
       (recur (inc i) (conj out
                            (union
-                            (if (not= i (- x-zero (/ num-keys 2))) (->>
+                            (if (and false (not= i (- x-zero (/ num-keys 2)))) (->>
                              (cube 2 19 5)
                              (rotate (deg->rad (- (* (slope-fn (- i 0.5)) 6)))[0 1 0])
                              (translate [(- (* i 20)10)  0 (curve-fn (- i 0.5)) ])))
