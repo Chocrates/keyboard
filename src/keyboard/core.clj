@@ -123,39 +123,58 @@
    (switch-nub nub-width 3.85 2.9)
    (rotate (deg->rad 180) [0 1 0])
    (rotate (deg->rad 180) [0 0 1])
-   (translate [(+ (- 0(/ inner-width 2)) (/ nub-width 2)) 0 0])
+   (rotate (deg->rad 90) [0 0 1])
+   (translate [0 (+ (- 0(/ inner-width 2)) (/ nub-width 2)) 0])
    )
   (->>
    (switch-nub nub-width 3.85 2.9)
    (rotate (deg->rad 180) [0 1 0])
-   (translate [(- (/ inner-width 2) (/ nub-width 2)) 0 0])))))
+   (rotate (deg->rad 90) [0 0 1])
+   (translate [0 (- (/ inner-width 2) (/ nub-width 2)) 0])))))
 
 (defn trans-curve
-  [num-keys curve-fn slope-fn]
-  (loop [i (- (/ num-keys 2)) out []]
-    (if (< i (/ num-keys 2))
+  ([num-keys x-zero curve-fn slope-fn]
+  
+  (loop [i (- x-zero (/ num-keys 2)) out []]
+    (if (< i (+ x-zero (/ num-keys 2)))
       (recur (inc i) (conj out
-                           (->> (switch-enclosure 21 4)
+                           (union
+                            (if (not= i (- x-zero (/ num-keys 2))) (->>
+                             (cube 2 19 5)
+                             (rotate (deg->rad (- (* (slope-fn (- i 0.5)) 6)))[0 1 0])
+                             (translate [(- (* i 20)10)  0 (curve-fn (- i 0.5)) ])))
+                           (->> (switch-enclosure 19 2)
                                 (rotate (deg->rad (- (* (slope-fn i) 2)))[0 1 0])
-                                (translate [(* i 20) 0 (curve-fn i) ]))))
-      (translate [ 0
-                 ; (if (= (mod num-keys 2) 0) (do (println (mod num-keys 2)) 10) (do (println (mod num-keys 2)) 10)) 
-                  0 0 ] out)))
-  )
+                                (translate [(* i 20) 0 (curve-fn i) ])))))
+      out)))
+  ([num-keys curve-fn slope-fn]
+   (trans-curve num-keys 0 curve-fn slope-fn)))
 
 
 (defn key-curve
   [x]
-  (/ (* x x) 1) )
+  (* (* x x) 2) )
 
 (defn key-derivative
   [x]
-  (* 2 x))
+  (* 4 x))
+
+
+(defn supports
+  [height]
+  (cube 5 10 height))
+
+(defn keyboard
+  []
+  (union
+   ;(->> (supports 15) (translate [51 0 0]))
+   (trans-curve 5 0.5 key-curve key-derivative)
+                                        ;(->> (supports 15) (translate [-51 0 0]))
+   ))
 
 (spit "demo.scad"
-      (write-scad (trans-curve 6 key-curve key-derivative)))
-;                                        (write-scad (switch-enclosure 19 2)))
-                                        ;      (write-scad (switch-nub 1.85 3.85 4.9)))
+                                        ;(write-scad (trans-curve 5 0.5 key-curve key-derivative)))
+      (write-scad (keyboard)))
 
 
 
