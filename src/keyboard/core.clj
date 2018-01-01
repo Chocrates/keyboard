@@ -132,6 +132,20 @@
    (rotate (deg->rad 90) [0 0 1])
    (translate [0 (- (/ inner-width 2) (/ nub-width 2)) 0])))))
 
+(defn position
+  [object x-pos y-pos z-pos y-rot]
+  (->> object
+       (rotate (deg->rad y-rot) [0 1 0])
+       (translate [x-pos y-pos z-pos])))
+
+(defn slice
+  [object x-pos]
+  (let [slice-width 0.01]
+    (intersection (->>
+                   (cube slice-width 10000 10000)
+                   (translate [x-pos 0 0]))
+                  object)))
+
 (defn trans-curve
   ([num-keys x-zero curve-fn slope-fn]
   
@@ -139,16 +153,21 @@
     (if (< i (+ x-zero (/ num-keys 2)))
       (recur (inc i) (conj out
                            (union
-                            (if (and false (not= i (- x-zero (/ num-keys 2)))) (->>
-                             (cube 2 19 5)
-                             (rotate (deg->rad (- (* (slope-fn (- i 0.5)) 6)))[0 1 0])
-                             (translate [(- (* i 20)10)  0 (curve-fn (- i 0.5)) ])))
-                           (->> (switch-enclosure 19 2)
-                                (rotate (deg->rad (- (* (slope-fn i) 2)))[0 1 0])
-                                (translate [(* i 20) 0 (curve-fn i) ])))))
+                            (position (switch-enclosure 19 2)
+                                      (* i 20) 0 (curve-fn i) (- (slope-fn i) ))
+                            (if  (< (+ i 1) (+ x-zero (/ num-keys 2)))
+                              (hull
+                              (position (slice (switch-enclosure 19 2) (/ 19 2))
+                                        (* i 20) 0 (curve-fn i) (- (slope-fn i) ))
+                              (position (slice (switch-enclosure 19 2) (/ -19 2))
+                                        (* (+ i 1) 20) 0 (curve-fn (+ i 1)) (- (slope-fn (+ i 1)) ))))))
+                                        )
       out)))
   ([num-keys curve-fn slope-fn]
    (trans-curve num-keys 0 curve-fn slope-fn)))
+
+
+
 
 
 (defn key-curve
@@ -168,12 +187,47 @@
   []
   (union
    ;(->> (supports 15) (translate [51 0 0]))
-   (trans-curve 5 0.5 key-curve key-derivative)
+   (trans-curve 9 0.5 key-curve key-derivative)
                                         ;(->> (supports 15) (translate [-51 0 0]))
    ))
 
+(defn connector-male
+  [cube-specs]
+  (with-fn 30
+  (union
+  (apply cube cube-specs)
+  (->> 
+  (difference 
+   (sphere 0.25)
+   (->> (cube 0.5 0.5 0.5)
+        (translate [0.1 0 0])))
+  (translate [-0.1 0.75 0]))
+  (->>
+   (difference
+     (sphere 0.25)
+     (->> (cube 0.5 0.5 0.5)
+          (translate [-0.1 0 0])))
+   (rotate (deg->rad 180) [1 0 0])
+   (translate [0.1 0.75 0])))))
+
+(defn connector-female
+  [cube-specs]
+  (difference
+   (cube 1.25 2.2 0.75)
+   (connector-male (map (fn [x] (* 1.2 x)) cube-specs))
+   )
+  )
+
 (spit "demo.scad"
-                                        ;(write-scad (trans-curve 5 0.5 key-curve key-derivative)))
+;      (write-scad
+;       (->> (connector-male [0.5 2 0.5]) (translate [0 -1 0]))
+;       (->> 
+;       (difference
+;        (connector-female [0.5 2 0.5])
+;        (->> (cube 2 2 2)
+;             (translate [0 -1 0])))
+;       (translate [0 1 0]))))
+
       (write-scad (keyboard)))
 
 
