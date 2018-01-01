@@ -1,7 +1,8 @@
 (ns keyboard.core
   (:gen-class)
   (:use [scad-clj.scad])
-  (:use [scad-clj.model]))
+  (:use [scad-clj.model])
+  (:import [java.lang Math]))
 
 (defn -main
   [& args]
@@ -17,10 +18,6 @@
 (defn soft-triangle
   [height width depth]
   (def min-pad (/ 1 10))
-  (println min-pad)
-  (println (* min-pad 2))
-  (println (- height (* min-pad 2)))
-  (println depth)
   (rotate (deg->rad 90) [0 0 1]
           (rotate (deg->rad 90) [1 0 0]
                  ; (translate [(/ -1 10) (/ -1 10) 0]
@@ -73,23 +70,6 @@
                                       [0 0 1]
                                       (soft-triangle 3.5 1.2 4)))))))
 
-; 28 * 5 + 2 mm long
-                                        ; ~12 mm deep
-                                        ; 15 mm wide
-(defn wierd-tube-thing
-  []
-  (def length (+ (* 28 5) 2))
-  (def depth  12)
-  (def width 15)
-  (with-fn 1000
-    (extrude-rotate
-     {:angle 10 :convexity 10}
-     (translate [-10 0 0]
-                (square depth width))
-     ))
-  )
-
-
 (defn switch-nub
   [width height depth]
   (difference
@@ -108,12 +88,6 @@
     (union
   (difference
    (cube width width 4.9) ; outside enclosure with 1mm walls
- ; (->>
- ;  (cube inner-width insert-space 10) ; right inside part of the "H" we are removing
- ;  (translate [0 (- 6 (/ insert-space 2)) 0]))
- ; (->>
- ;  (cube inner-width insert-space 10) ; left inside part of the "H"
- ;  (translate [0 (- 0 (- 6 (/ insert-space 2))) 0]))
   (->>
    (cube inner-width inner-width 10))
   (->>
@@ -133,10 +107,13 @@
    (translate [0 (- (/ inner-width 2) (/ nub-width 2)) 0])))))
 
 (defn position
-  [object x-pos y-pos z-pos y-rot]
-  (->> object
-       (rotate (deg->rad y-rot) [0 1 0])
-       (translate [x-pos y-pos z-pos])))
+  [object a x]
+  (do
+    (println (str "A: " a " X: " x " Z-Pos: " (* a x x) " Rot: " (Math/atan (* 2 a x))))
+    (->> object
+       (rotate  [0 (Math/atan (* 2 a x)) 0])
+       (translate [(- x) 0 (* a x x)])
+       )))
 
 (defn slice
   [object x-pos]
@@ -148,20 +125,19 @@
 
 (defn trans-curve
   ([num-keys x-zero curve-fn slope-fn]
-  
-  (loop [i (- x-zero (/ num-keys 2)) out []]
-    (if (< i (+ x-zero (/ num-keys 2)))
-      (recur (inc i) (conj out
+   (loop [i (+ (/ (* -20 num-keys) 2) 10) out []]    ;[i (- x-zero (/ num-keys 2)) out []]
+     (if (< i (+ 10 (/ (* 20 num-keys) 2) ))
+      (recur (+ i 20) (conj out
                            (union
                             (position (switch-enclosure 19 2)
-                                      (* i 20) 0 (curve-fn i) (- (slope-fn i) ))
-                            (if  (< (+ i 1) (+ x-zero (/ num-keys 2)))
+                                      0.005 i)
+                            (if (> i (+ (/ (* -20 num-keys) 2) 10))
                               (hull
-                              (position (slice (switch-enclosure 19 2) (/ 19 2))
-                                        (* i 20) 0 (curve-fn i) (- (slope-fn i) ))
-                              (position (slice (switch-enclosure 19 2) (/ -19 2))
-                                        (* (+ i 1) 20) 0 (curve-fn (+ i 1)) (- (slope-fn (+ i 1)) ))))))
-                                        )
+                               (position (slice (switch-enclosure 19 2) (/ 19 2))
+                                        0.005 i)
+                               (position (slice (switch-enclosure 19 2) (/ -19 2))
+                                                    0.005 (- i 20))))
+                            )))
       out)))
   ([num-keys curve-fn slope-fn]
    (trans-curve num-keys 0 curve-fn slope-fn)))
@@ -187,7 +163,7 @@
   []
   (union
    ;(->> (supports 15) (translate [51 0 0]))
-   (trans-curve 9 0.5 key-curve key-derivative)
+   (trans-curve 5 0 key-curve key-derivative)
                                         ;(->> (supports 15) (translate [-51 0 0]))
    ))
 
