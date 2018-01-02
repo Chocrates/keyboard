@@ -107,13 +107,20 @@
    (translate [0 (- (/ inner-width 2) (/ nub-width 2)) 0])))))
 
 (defn position
-  [object a x]
+  [object x curve-fn slope-fn]
   (do
-    (println (str "A: " a " X: " x " Z-Pos: " (* a x x) " Rot: " (Math/atan (* 2 a x))))
+    (println (str "X: " x " Z-Pos: " (curve-fn x) " Rot: " (Math/atan (slope-fn x))))
     (->> object
-       (rotate  [0 (Math/atan (* 2 a x)) 0])
-       (translate [(- x) 0 (* a x x)])
+       (rotate  [0 (Math/atan (slope-fn x)) 0])
+       (translate [(- x) 0 (curve-fn x)])
        )))
+
+(defn column-position
+  [column y curve-fn slope-fn]
+  (->> column
+    (rotate  [(Math/atan (slope-fn y)) 0 0])
+       (translate [0 y (curve-fn y)])
+       ))
 
 (defn slice
   [object x-pos]
@@ -125,35 +132,30 @@
 
 (defn trans-curve
   ([num-keys x-zero curve-fn slope-fn]
-   (loop [i (+ (/ (* -20 num-keys) 2) 10) out []]    ;[i (- x-zero (/ num-keys 2)) out []]
-     (if (< i (+ 10 (/ (* 20 num-keys) 2) ))
+   (loop [i (+ (/ (* -20 num-keys) 2) x-zero) out []]    ;[i (- x-zero (/ num-keys 2)) out []]
+     (if (< i (+ (/ (* 20 num-keys) 2) x-zero))
       (recur (+ i 20) (conj out
                            (union
-                            (position (switch-enclosure 19 2)
-                                      0.005 i)
-                            (if (> i (+ (/ (* -20 num-keys) 2) 10))
+                            (position (switch-enclosure 21 4)
+                                      i curve-fn slope-fn)
+                            (if (> i (+ (/ (* -20 num-keys) 2) x-zero))
                               (hull
-                               (position (slice (switch-enclosure 19 2) (/ 19 2))
-                                        0.005 i)
-                               (position (slice (switch-enclosure 19 2) (/ -19 2))
-                                                    0.005 (- i 20))))
+                               (position (slice (switch-enclosure 21 4) (/ 19 2))
+                                        i curve-fn slope-fn)
+                               (position (slice (switch-enclosure 21 4) (/ -19 2))
+                                                    (- i 20) curve-fn slope-fn)))
                             )))
       out)))
   ([num-keys curve-fn slope-fn]
-   (trans-curve num-keys 0 curve-fn slope-fn)))
-
-
-
-
+   (trans-curve num-keys 10 curve-fn slope-fn)))
 
 (defn key-curve
   [x]
-  (* (* x x) 2) )
+  (/ (* x x) 200) )
 
 (defn key-derivative
   [x]
-  (* 4 x))
-
+  (/ x 100))
 
 (defn supports
   [height]
@@ -161,11 +163,21 @@
 
 (defn keyboard
   []
+  (rotate (deg->rad 20) [1 0 0]
   (union
-   ;(->> (supports 15) (translate [51 0 0]))
-   (trans-curve 5 0 key-curve key-derivative)
-                                        ;(->> (supports 15) (translate [-51 0 0]))
-   ))
+   (column-position (trans-curve 5 key-curve key-derivative)
+                   -57 key-curve key-derivative )
+   (column-position (trans-curve 5 2.5 key-curve key-derivative)
+        -38 key-curve key-derivative)
+   (column-position (trans-curve 5 key-curve key-derivative)
+        -19 key-curve key-derivative)
+   (column-position (trans-curve 5 key-curve key-derivative)
+        0 key-curve key-derivative)
+   (column-position (trans-curve 5 key-curve key-derivative)
+        19 key-curve key-derivative)
+   (column-position (trans-curve 5 key-curve key-derivative)
+        38 key-curve key-derivative)
+   )))
 
 (defn connector-male
   [cube-specs]
